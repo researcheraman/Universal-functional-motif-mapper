@@ -1,0 +1,10 @@
+streamlit
+biopython
+pandas
+numpy
+requests
+logomaker
+py3Dmol
+reportlab
+git+https://github.com/facebookresearch/esm.git
+torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
