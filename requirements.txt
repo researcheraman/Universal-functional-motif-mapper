@@ -3,8 +3,12 @@ biopython
 pandas
 numpy
 requests
+scikit-learn
 logomaker
 py3Dmol
 reportlab
 git+https://github.com/facebookresearch/esm.git
-torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+torchaudio
