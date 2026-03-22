@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import re
 from Bio import SeqIO
 from io import StringIO
 from collections import Counter
@@ -13,7 +14,6 @@ import logomaker
 import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
 import tempfile
 import os
 
@@ -37,16 +37,21 @@ run = st.sidebar.button("🚀 Run Full Advanced Analysis", type="primary")
 if run:
     with st.spinner("Fetching real UniProt data + ESM embeddings + motif analysis..."):
         def fetch(group, limit=60):
-            if not group.strip(): return []
+            if not group.strip(): 
+                return []
             spp = [s.strip() for s in group.split(",")]
             seqs = []
             for sp in spp:
                 url = f"https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=organism:{sp} AND keyword:KW-1194 AND reviewed:true&size={limit}"
                 try:
                     r = requests.get(url, timeout=15)
+                    r.raise_for_status()
                     recs = list(SeqIO.parse(StringIO(r.text), "fasta"))
                     seqs.extend([str(r.seq) for r in recs if 50 < len(r.seq) < 700 and "X" not in str(r.seq)])
-                except: pass
+                except requests.RequestException as exc:
+                    st.warning(f"Failed to fetch UniProt data for '{sp}': {exc}")
+                except Exception as exc:
+                    st.warning(f"Failed to parse UniProt FASTA for '{sp}': {exc}")
             return seqs[:limit]
 
         bact_seqs = fetch(bact_input)
@@ -56,7 +61,9 @@ if run:
 
         all_seqs = bact_seqs + virus_seqs + mge_seqs + host_seqs
         sources = ["Bacteria"]*len(bact_seqs) + ["Virus"]*len(virus_seqs) + ["MGE"]*len(mge_seqs) + ["Host"]*len(host_seqs)
-
+        if not all_seqs:
+            st.error("No sequences were retrieved. Please try different taxa or check network connectivity.")
+            st.stop()
         # === ESM Functional Clustering (tiny model – CPU friendly) ===
         model, alphabet = load_model_and_alphabet("esm2_t6_8M_UR50D")
         model = model.eval()
@@ -88,7 +95,7 @@ if run:
             top_motif = kmer_c.most_common(1)[0][0] if kmer_c else ""
 
             # Refined classification
-            if "GXXXXGK" in top_motif or "GK[T/S]" in top_motif:
+            if re.search(r"G....GK", top_motif) or re.search(r"GK[TS]", top_motif):
                 func = "Replication origins / ATP-binding site"
             elif sum(1 for a in top_motif if a in "KR") >= 4:
                 func = "Protein binding motifs / Promoter-operator elements"
@@ -135,13 +142,19 @@ if run:
         final_df = pd.DataFrame(map_data)
 
         st.success("✅ Full advanced analysis complete!")
-        st.dataframe(final_df.drop(columns=["Logo"]), use_container_width=True)
+        if final_df.empty:
+            st.info("No motifs passed clustering/occurrence thresholds with the current settings.")
+        else:
+            st.dataframe(final_df.drop(columns=["Logo"], errors="ignore"), use_container_width=True)
 
         # Display logos
         st.subheader("Motif Logos")
-        for i, row in final_df.iterrows():
-            if row["Logo"] is not None:
-                st.pyplot(row["Logo"])
+        if final_df.empty:
+            st.caption("No motif logos to display.")
+        else:
+            for i, row in final_df.iterrows():
+                if row["Logo"] is not None:
+                    st.pyplot(row["Logo"])
 
         # PDF Report
         if st.button("📥 Download Full Professional PDF Report"):
