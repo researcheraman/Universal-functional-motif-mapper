@@ -12,8 +12,9 @@ function-first motifs across bacteria, viruses, mobile genetic elements (MGEs), 
 - Estimates empirical p-values with permutation testing.
 - Controls false discoveries with Benjamini-Hochberg q-values.
 - Emits a motif-function map with testable predictions.
+- Provides a publication-friendly workflow from UniProt retrieval to methods-ready outputs.
 
-## Quickstart
+## Quickstart (local FASTA inputs)
 
 ```bash
 python run_ufmm.py \
@@ -22,6 +23,23 @@ python run_ufmm.py \
   --mges data/mges.faa \
   --output results/motif_function_map.csv
 ```
+
+## Research workflow quickstart (UniProt → UFMM)
+
+```bash
+python run_research_workflow.py \
+  --bacteria "Escherichia coli" "Bacillus subtilis" \
+  --viruses "SARS-CoV-2" "Influenza A virus" \
+  --mges "Escherichia plasmid" \
+  --output-csv results/motif_function_map.csv \
+  --output-summary results/workflow_summary.json \
+  --output-methods results/methods_snapshot.md
+```
+
+This workflow automatically produces:
+- motif result table (`--output-csv`),
+- machine-readable run metadata (`--output-summary`), and
+- manuscript-ready methods snapshot (`--output-methods`).
 
 ## Output columns
 
